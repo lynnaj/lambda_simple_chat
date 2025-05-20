@@ -13,20 +13,33 @@ def lambda_handler(event, context):
         endpoint_url = 'https://vpce-xxxx.bedrock-runtime.us-x-region.vpce.amazonaws.com'
         )   
     prompt = event['prompt']
-    model_id = "amazon.titan-text-express-v1"
+    model_id = "amazon.nova-pro-v1:0" # Replace with your Bedrock model ID
 
-    native_request = {
-    "inputText": prompt,
-    "textGenerationConfig": {
-        "maxTokenCount": 512,
-        "temperature": 0.5,
-        },
-    }
+    # Define your system prompt(s).
+    system_list = [
+            {
+                "text": "You are a help assistant."
+            }
+    ]
+
+    # Define one or more messages using the "user" and "assistant" roles.
+    message_list = [{"role": "user", "content": [{"text": prompt}]}]
+
+    # Configure the inference parameters.
+    inf_params = {"maxTokens": 500, "topP": 0.9, "topK": 20, "temperature": 0.7}
+
     try:
         response = bedrock_runtime.invoke_model(
-            body=json.dumps(native_request),
-            modelId= model_id
-            )
+            body=json.dumps({
+                "schemaVersion": "messages-v1",
+                "messages": message_list,
+                "system": system_list,
+                "inferenceConfig": inf_params
+            }),
+            modelId= model_id,
+            contentType="application/json",
+            accept="application/json"
+        )
 
         logger.info(f"Raw Bedrock response: {response}")
 
@@ -34,7 +47,7 @@ def lambda_handler(event, context):
 
         logger.info(f"json response: {response_body}")
         # The response from the model now mapped to the answer
-        answer = response_body['results'][0]['outputText']
+        answer = response_body['output']['message']['content'][0]['text']
 
         return {
             'statusCode': 200,
